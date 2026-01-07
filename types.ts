@@ -1,4 +1,10 @@
 
+export interface ColorGradingChannel {
+  hue: number;
+  sat: number;
+  lum: number;
+}
+
 export interface HSLChannel {
   hue: number;
   sat: number;
@@ -33,9 +39,9 @@ export interface LightroomParams {
     magenta: HSLChannel;
   };
   colorGrading: {
-    shadows: { hue: number; sat: number; lum: number };
-    midtones: { hue: number; sat: number; lum: number };
-    highlights: { hue: number; sat: number; lum: number };
+    shadows: ColorGradingChannel;
+    midtones: ColorGradingChannel;
+    highlights: ColorGradingChannel;
     blending: number;
     balance: number;
   };

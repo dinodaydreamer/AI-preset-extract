@@ -5,24 +5,16 @@ export const generateXMP = (params: LightroomParams, presetName: string): string
   const { 
     exposure, contrast, highlights, shadows, whites, blacks, 
     temperature, tint, vibrance, saturation, clarity, dehaze, 
-    texture, sharpness, noiseReduction, colorNoiseReduction, hsl, colorGrading 
+    texture, sharpness, noiseReduction, colorNoiseReduction,
+    hsl, colorGrading
   } = params;
 
-  return `<x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="Adobe XMP Core 5.6-c140 79.160451, 2017/09/14-10:25:28">
+  return `<x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="Adobe XMP Core 5.6-c140 79.160451">
  <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
   <rdf:Description rdf:about=""
     xmlns:crs="http://ns.adobe.com/camera-raw-settings/1.0/"
    crs:PresetType="Normal"
-   crs:Cluster=""
-   crs:UUID="${Math.random().toString(36).substring(2, 15)}"
-   crs:SupportsAmount="True"
-   crs:SupportsColor="True"
-   crs:SupportsMonochrome="True"
-   crs:SupportsHighDynamicRange="True"
-   crs:SupportsNormalDynamicRange="True"
-   crs:SupportsSceneReferred="True"
-   crs:SupportsOutputReferred="True"
-   crs:CameraConfig="Camera Profile"
+   crs:UUID="${Math.random().toString(36).substring(2, 15).toUpperCase()}"
    crs:HasSettings="True"
    crs:Exposure2012="${exposure.toFixed(2)}"
    crs:Contrast2012="${Math.round(contrast)}"
@@ -38,8 +30,8 @@ export const generateXMP = (params: LightroomParams, presetName: string): string
    crs:Dehaze="${Math.round(dehaze)}"
    crs:Texture="${Math.round(texture)}"
    crs:Sharpness="${Math.round(sharpness)}"
-   crs:LuminanceSmoothing="${Math.round(noiseReduction || 0)}"
-   crs:ColorNoiseReduction="${Math.round(colorNoiseReduction || 0)}"
+   crs:LuminanceSmoothing="${Math.round(noiseReduction)}"
+   crs:ColorNoiseReduction="${Math.round(colorNoiseReduction)}"
    crs:HueAdjustmentRed="${Math.round(hsl.red.hue)}"
    crs:HueAdjustmentOrange="${Math.round(hsl.orange.hue)}"
    crs:HueAdjustmentYellow="${Math.round(hsl.yellow.hue)}"
@@ -64,17 +56,21 @@ export const generateXMP = (params: LightroomParams, presetName: string): string
    crs:LuminanceAdjustmentBlue="${Math.round(hsl.blue.lum)}"
    crs:LuminanceAdjustmentPurple="${Math.round(hsl.purple.lum)}"
    crs:LuminanceAdjustmentMagenta="${Math.round(hsl.magenta.lum)}"
-   crs:ColorGradeHighlightHue="${Math.round(colorGrading.highlights.hue)}"
-   crs:ColorGradeHighlightSat="${Math.round(colorGrading.highlights.sat)}"
-   crs:ColorGradeHighlightLum="${Math.round(colorGrading.highlights.lum)}"
-   crs:ColorGradeMidtoneHue="${Math.round(colorGrading.midtones.hue)}"
-   crs:ColorGradeMidtoneSat="${Math.round(colorGrading.midtones.sat)}"
-   crs:ColorGradeMidtoneLum="${Math.round(colorGrading.midtones.lum)}"
-   crs:ColorGradeShadowHue="${Math.round(colorGrading.shadows.hue)}"
-   crs:ColorGradeShadowSat="${Math.round(colorGrading.shadows.sat)}"
-   crs:ColorGradeShadowLum="${Math.round(colorGrading.shadows.lum)}"
-   crs:ColorGradeBlending="${Math.round(colorGrading.blending)}"
-   crs:ColorGradeBalance="${Math.round(colorGrading.balance)}"
+   crs:SplitToningShadowHue="${Math.round(colorGrading.shadows.hue)}"
+   crs:SplitToningShadowSaturation="${Math.round(colorGrading.shadows.sat)}"
+   crs:SplitToningHighlightHue="${Math.round(colorGrading.highlights.hue)}"
+   crs:SplitToningHighlightSaturation="${Math.round(colorGrading.highlights.sat)}"
+   crs:SplitToningBalance="${Math.round(colorGrading.balance)}"
+   crs:ColorGradingShadowHue="${Math.round(colorGrading.shadows.hue)}"
+   crs:ColorGradingShadowSat="${Math.round(colorGrading.shadows.sat)}"
+   crs:ColorGradingMidtoneHue="${Math.round(colorGrading.midtones.hue)}"
+   crs:ColorGradingMidtoneSat="${Math.round(colorGrading.midtones.sat)}"
+   crs:ColorGradingHighlightHue="${Math.round(colorGrading.highlights.hue)}"
+   crs:ColorGradingHighlightSat="${Math.round(colorGrading.highlights.sat)}"
+   crs:ColorGradingBlending="${Math.round(colorGrading.blending)}"
+   crs:ColorGradingGlobalHue="0"
+   crs:ColorGradingGlobalSat="0"
+   crs:ColorGradingGlobalLum="0"
    crs:HasCrop="False"
    crs:AlreadyApplied="True">
    <crs:Name>
