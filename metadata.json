@@ -1,0 +1,8 @@
+
+{
+  "name": "CINEGRADE - Neural Color Engine",
+  "description": "High-end cinematic color deconstruction tool using Gemini AI to export professional XMP/DNG presets.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
