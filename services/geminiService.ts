@@ -2,22 +2,36 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { AnalysisResult } from "../types";
 
-export const analyzeImage = async (base64Image: string): Promise<AnalysisResult> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+export const analyzeImage = async (base64Image: string, manualApiKey?: string): Promise<AnalysisResult> => {
+  const apiKey = manualApiKey || process.env.API_KEY;
   
-  const prompt = `Act as a senior high-end film colorist and photographer. Analyze the provided image to reverse-engineer a professional Lightroom/Camera Raw preset (.XMP).
+  if (!apiKey) {
+    throw new Error("API Key không hợp lệ. Vui lòng kiểm tra lại.");
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
   
-  EXTRACT THE FOLLOWING PRECISE DATA:
-  1. WHITE BALANCE: Temperature (2000-50000K) and Tint (-150 to +150).
-  2. BASIC TONE: Exposure (-5 to +5), Contrast, Highlights, Shadows, Whites, Blacks (-100 to +100).
-  3. PRESENCE: Texture, Clarity, Dehaze, Vibrance, Saturation (-100 to +100).
-  4. HSL (8 COLORS): For Red, Orange, Yellow, Green, Aqua, Blue, Purple, Magenta, provide Hue, Saturation, and Luminance (-100 to +100).
-  5. COLOR GRADING: 3-Way Wheels. For Shadows, Midtones, and Highlights: Hue (0-360), Sat (0-100), Lum (-100 to +100). Also provide Blending and Balance (0-100).
-  6. DETAIL: Sharpness, Noise Reduction, Color Noise Reduction (0-100).
+  const prompt = `Act as a world-class senior film colorist and master of Adobe Lightroom/Camera Raw. 
+  Your mission is to perform a pixel-perfect color deconstruction of the provided image to create a professional .XMP preset.
 
-  Respond strictly in JSON format matching the schema provided. Be very accurate with color theory (e.g., skin tones usually involve orange/red HSL adjustments).`;
+  CRITICAL CONSTRAINTS FOR ABSOLUTE ACCURACY:
+  1. SHARPENING: Must be extremely subtle. STRICTLY between 0 and 10. Do not exceed 10 to maintain a natural cinematic look.
+  2. WHITE BALANCE: Precisely identify the light source temperature. Range: 2000-50000.
+  3. COLOR GRADING (3-WAY): This is the soul of the look. Analyze the color cast in Shadows, Midtones, and Highlights. 
+     - Look for complementary color harmonies (e.g., Teal shadows, Warm highlights).
+     - Provide Hue (0-360), Sat (0-100), and Lum (-100 to +100).
+  4. HSL ANALYSIS: 
+     - Analyze specific shifts. For example, if greens are desaturated and shifted towards yellow, reflect that in Hue and Sat.
+     - Protect Skin Tones: Ensure Orange/Red channels are optimized for natural skin rendition.
+  5. TONE MAPPING: 
+     - Exposure should be precise to 0.05 increments.
+     - Contrast, Highlights, Shadows, Whites, Blacks must balance to preserve the full dynamic range of the reference image.
+  6. PRESENCE: 
+     - Texture and Clarity should be used sparingly (usually between -20 and +20) to avoid digital artifacts.
+     - Dehaze should reflect the atmospheric depth of the reference.
 
-  // Fixed: Use gemini-3-pro-preview for complex reasoning tasks as per guidelines
+  Respond strictly in JSON format. Your goal is "Visual Identity Cloning" - the resulting preset should make any standard photo look exactly like this reference in terms of color science.`;
+
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-preview',
     contents: {
@@ -49,7 +63,7 @@ export const analyzeImage = async (base64Image: string): Promise<AnalysisResult>
               clarity: { type: Type.NUMBER },
               dehaze: { type: Type.NUMBER },
               texture: { type: Type.NUMBER },
-              sharpness: { type: Type.NUMBER },
+              sharpness: { type: Type.NUMBER, description: "Must be between 0 and 10" },
               noiseReduction: { type: Type.NUMBER },
               colorNoiseReduction: { type: Type.NUMBER },
               hsl: {
@@ -83,8 +97,12 @@ export const analyzeImage = async (base64Image: string): Promise<AnalysisResult>
   });
 
   try {
-    // Fixed: Accessed .text property directly
-    return JSON.parse(response.text.trim());
+    const result = JSON.parse(response.text.trim());
+    // Hậu kiểm tra thủ công để đảm bảo Sharpening không vượt quá 10 nếu AI vi phạm
+    if (result.parameters.sharpness > 10) {
+      result.parameters.sharpness = 10;
+    }
+    return result;
   } catch (e) {
     throw new Error("Neural Engine failed to parse visual data. Retrying connection...");
   }

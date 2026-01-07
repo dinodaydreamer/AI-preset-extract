@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { 
   Upload, Download, Image as ImageIcon, Loader2, 
   Wand2, ArrowLeft, Palette, Sun, Sliders, 
-  Smartphone, Monitor, Copy, Check, HelpCircle, X, Languages, Zap, Focus, Activity, CircleDot, Key, ExternalLink
+  Smartphone, Monitor, Copy, Check, HelpCircle, X, Languages, Zap, Focus, Activity, CircleDot, Key, ExternalLink, ShieldCheck, AlertCircle, Lock
 } from 'lucide-react';
 import { analyzeImage } from './services/geminiService';
 import { generateXMP } from './utils/xmpGenerator';
@@ -16,10 +16,9 @@ const TRANSLATIONS = {
   en: {
     tagline: "NEURAL COLOR ENGINE",
     newProject: "NEW PROJECT",
-    landingTitle: "Master the Cinema Aesthetic.",
+    landingTitle: "Master the Art of Color in Photography",
     landingSub: "Upload any reference frame. Our AI deconstructs complex color science into professional Lightroom presets.",
     importRef: "Import Reference Frame",
-    dragDrop: "Drag & drop high-res stills or dailies",
     deconstruct: "DECONSTRUCT COLOR GRADE",
     analyzing: "PROCESSING NEURAL LUT...",
     desktop: "DESKTOP (.XMP)",
@@ -30,15 +29,16 @@ const TRANSLATIONS = {
     connectRef: "Connect reference image to begin extraction.",
     howToUse: "User Manual",
     guideStep1: "1. Select a high-quality photo with colors you want to replicate.",
-    guideStep2: "2. Press the Deconstruct button to let Gemini AI analyze the color science.",
-    guideStep3: "3. Export as .XMP for Desktop Lightroom or .DNG for Mobile version.",
-    guideStep4: "4. Import and apply to your photos for professional results.",
+    guideStep2: "2. Enter your Gemini API Key in the box below.",
+    guideStep3: "3. Press Deconstruct to analyze color science.",
+    guideStep4: "4. Export as .XMP for Desktop or .DNG for Mobile.",
     startApp: "INITIATE ENGINE",
     v: "VERSION 3.5",
-    apiKey: "API KEY",
-    keyActive: "ACTIVE",
-    keyRequired: "REQUIRED",
-    billingLink: "Billing Docs",
+    apiKey: "API CONNECTION",
+    keyActive: "CONNECTED",
+    keyRequired: "ENTER API KEY",
+    pasteKey: "Enter your API Key...",
+    billingLink: "Get API Key",
     tabs: {
       tone: "TONE",
       presence: "PRESENCE",
@@ -68,10 +68,9 @@ const TRANSLATIONS = {
   vi: {
     tagline: "CÔNG CỤ MÀU SẮC AI",
     newProject: "DỰ ÁN MỚI",
-    landingTitle: "Làm chủ nghệ thuật điện ảnh.",
+    landingTitle: "Làm chủ nghệ thuật màu sắc trong nhiếp ảnh",
     landingSub: "Tải lên ảnh tham chiếu. AI sẽ phân tích các thông số màu sắc phức tạp thành Preset Lightroom chuyên nghiệp.",
     importRef: "Nhập Ảnh Tham Chiếu",
-    dragDrop: "Kéo và thả ảnh tại đây",
     deconstruct: "PHÂN TÍCH MÀU SẮC",
     analyzing: "ĐANG XỬ LÝ NEURAL LUT...",
     desktop: "MÁY TÍNH (.XMP)",
@@ -82,15 +81,16 @@ const TRANSLATIONS = {
     connectRef: "Kết nối ảnh tham chiếu để bắt đầu trích xuất.",
     howToUse: "Hướng Dẫn Sử Dụng",
     guideStep1: "1. Chọn một tấm ảnh chất lượng cao có màu sắc bạn yêu thích.",
-    guideStep2: "2. Nhấn nút Phân tích để AI xử lý toàn bộ bảng màu.",
-    guideStep3: "3. Xuất file .XMP cho máy tính hoặc .DNG cho di động.",
-    guideStep4: "4. Nhập vào Lightroom để áp dụng lên bộ ảnh của bạn.",
+    guideStep2: "2. Nhập API Key của bạn vào ô bên dưới.",
+    guideStep3: "3. Nhấn nút Phân tích để AI xử lý toàn bộ bảng màu.",
+    guideStep4: "4. Xuất file .XMP cho máy tính hoặc .DNG cho di động.",
     startApp: "BẮT ĐẦU VẬN HÀNH",
     v: "PHIÊN BẢN 3.5",
-    apiKey: "API KEY",
-    keyActive: "ĐÃ KÍCH HOẠT",
-    keyRequired: "CHƯA CÓ KEY",
-    billingLink: "Tài liệu thanh toán",
+    apiKey: "KẾT NỐI API",
+    keyActive: "ĐÃ KẾT NỐI",
+    keyRequired: "NHẬP API KEY ĐỂ BẮT ĐẦU",
+    pasteKey: "Nhập API Key của bạn tại đây...",
+    billingLink: "Lấy API Key tại đây",
     tabs: {
       tone: "ÁNH SÁNG",
       presence: "HIỆU ỨNG",
@@ -128,27 +128,9 @@ const App: React.FC = () => {
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [activeTab, setActiveTab] = useState<ActiveTab>('tone');
   const [copied, setCopied] = useState(false);
-  const [hasApiKey, setHasApiKey] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
+  const [manualKey, setManualKey] = useState<string>('');
+  
   const t = TRANSLATIONS[lang];
-
-  useEffect(() => {
-    const checkKey = async () => {
-      // @ts-ignore
-      const active = await window.aistudio.hasSelectedApiKey();
-      setHasApiKey(active);
-    };
-    checkKey();
-    const interval = setInterval(checkKey, 2000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const handleSelectKey = async () => {
-    // @ts-ignore
-    await window.aistudio.openSelectKey();
-    setHasApiKey(true);
-  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -163,22 +145,16 @@ const App: React.FC = () => {
   };
 
   const startAnalysis = async () => {
-    if (!image) return;
-    if (!hasApiKey) {
-      await handleSelectKey();
-      return;
-    }
+    if (!image || !manualKey) return;
+    
     setAnalyzing(true);
     try {
       const base64Data = image.split(',')[1];
-      const data = await analyzeImage(base64Data);
+      const data = await analyzeImage(base64Data, manualKey);
       setResult(data);
     } catch (err: any) {
       console.error(err);
-      if (err.message?.includes("Requested entity was not found")) {
-        setHasApiKey(false);
-        await handleSelectKey();
-      }
+      alert("Lỗi: " + (err.message || "Không thể kết nối API. Vui lòng kiểm tra lại Key."));
     } finally {
       setAnalyzing(false);
     }
@@ -205,18 +181,56 @@ const App: React.FC = () => {
 
   if (!hasStarted) {
     return (
-      <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6 text-center">
+      <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-700">
         <div className="w-24 h-24 bg-orange-600 rounded-[2rem] flex items-center justify-center text-white mb-8 shadow-2xl shadow-orange-900/40 animate-pulse">
           <Zap size={48} strokeWidth={2.5} />
         </div>
-        <h1 className="text-6xl font-black tracking-tighter text-white mb-2 uppercase">CINEGRADE</h1>
-        <p className="text-orange-500 font-black tracking-[0.4em] text-xs mb-12">{t.tagline}</p>
-        <div className="flex gap-4 mb-12">
-          <button onClick={() => setLang('en')} className={`px-4 py-2 text-xs font-black tracking-widest rounded border ${lang === 'en' ? 'bg-white text-black' : 'border-zinc-800 text-zinc-500'}`}>EN</button>
-          <button onClick={() => setLang('vi')} className={`px-4 py-2 text-xs font-black tracking-widest rounded border ${lang === 'vi' ? 'bg-white text-black' : 'border-zinc-800 text-zinc-500'}`}>VI</button>
+        
+        <div className="space-y-1 mb-8">
+          <h1 className="text-6xl md:text-7xl font-black tracking-tighter text-white uppercase italic leading-none">CINEGRADE</h1>
+          <p className="text-orange-500 font-black tracking-[0.4em] text-xs">{t.tagline}</p>
         </div>
-        <button onClick={() => setHasStarted(true)} className="px-12 py-5 bg-orange-600 hover:bg-orange-500 text-white font-black tracking-widest uppercase rounded-full shadow-2xl orange-glow transition-all">{t.startApp}</button>
-        <p className="mt-8 text-zinc-700 text-[10px] font-black tracking-widest">{t.v}</p>
+
+        <div className="flex gap-4 mb-10">
+          <button onClick={() => setLang('en')} className={`px-4 py-2 text-[10px] font-black tracking-widest rounded border transition-all ${lang === 'en' ? 'bg-white text-black border-white' : 'border-zinc-800 text-zinc-500 hover:text-zinc-300'}`}>EN</button>
+          <button onClick={() => setLang('vi')} className={`px-4 py-2 text-[10px] font-black tracking-widest rounded border transition-all ${lang === 'vi' ? 'bg-white text-black border-white' : 'border-zinc-800 text-zinc-500 hover:text-zinc-300'}`}>VI</button>
+        </div>
+
+        {/* REAL TEXTBOX FOR API KEY ENTRY */}
+        <div className="w-full max-w-sm mb-10 space-y-4">
+          <div className="flex flex-col items-start gap-1.5 w-full">
+            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] px-1">{t.keyRequired}</label>
+            <div className={`flex items-center w-full px-4 py-3.5 bg-zinc-950 border-2 rounded-2xl transition-all shadow-2xl group ${manualKey ? 'border-emerald-600/50' : 'border-zinc-900 focus-within:border-orange-600'}`}>
+              <Key size={18} className={manualKey ? "text-emerald-500" : "text-zinc-600 group-focus-within:text-orange-500"} />
+              <input 
+                type="password"
+                value={manualKey}
+                onChange={(e) => setManualKey(e.target.value)}
+                placeholder={t.pasteKey}
+                className="bg-transparent border-none outline-none flex-1 ml-3 text-sm font-mono tracking-widest text-white placeholder:text-zinc-800"
+              />
+              {manualKey && <ShieldCheck size={18} className="text-emerald-500" />}
+            </div>
+          </div>
+          <a 
+            href="https://aistudio.google.com/app/apikey" 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="text-[10px] text-zinc-600 hover:text-orange-500 flex items-center justify-center gap-1 transition-colors uppercase tracking-[0.2em] font-black"
+          >
+            {t.billingLink} <ExternalLink size={10} />
+          </a>
+        </div>
+
+        <button 
+          onClick={() => manualKey && setHasStarted(true)} 
+          disabled={!manualKey}
+          className={`px-20 py-5 rounded-full font-black tracking-widest uppercase transition-all shadow-2xl ${manualKey ? 'bg-orange-600 hover:bg-orange-500 text-white orange-glow active:scale-95' : 'bg-zinc-900 text-zinc-700 border border-zinc-800 cursor-not-allowed opacity-50'}`}
+        >
+          {t.startApp}
+        </button>
+
+        <p className="mt-12 text-zinc-800 text-[9px] font-black tracking-[0.3em] uppercase italic">{t.v}</p>
       </div>
     );
   }
@@ -227,50 +241,22 @@ const App: React.FC = () => {
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Zap size={24} className="text-orange-600 cursor-pointer" onClick={() => setHasStarted(false)} />
-            <div>
-              <h1 className="text-lg font-black tracking-tight text-white">CINEGRADE</h1>
-              <p className="text-[9px] uppercase tracking-widest text-zinc-600 font-bold">{t.tagline}</p>
+            <div className="hidden sm:block">
+              <h1 className="text-lg font-black tracking-tight text-white uppercase italic">Cinegrade</h1>
             </div>
           </div>
           
           <div className="flex items-center gap-4">
-            {/* API KEY STATUS BAR */}
-            <div className="hidden lg:flex items-center gap-2">
-              <div className="flex flex-col items-end mr-2">
-                <span className="text-[8px] font-black text-zinc-600 uppercase tracking-widest">{t.apiKey}</span>
-                <a 
-                  href="https://ai.google.dev/gemini-api/docs/billing" 
-                  target="_blank" 
-                  rel="noopener noreferrer" 
-                  className="text-[7px] text-zinc-700 hover:text-orange-500 flex items-center gap-1 transition-colors"
-                >
-                  {t.billingLink} <ExternalLink size={6} />
-                </a>
-              </div>
-              <div className="flex items-center gap-1 p-1 bg-zinc-900/50 border border-zinc-900 rounded-lg group hover:border-zinc-800 transition-all">
-                <div 
-                  onClick={handleSelectKey}
-                  className="flex items-center gap-3 px-3 py-1.5 bg-black rounded border border-zinc-800 cursor-pointer hover:bg-zinc-950 transition-all min-w-[180px]"
-                >
-                  <div className={`w-2 h-2 rounded-full ${hasApiKey ? 'bg-emerald-500 shadow-[0_0_8px_#10b981]' : 'bg-orange-500 animate-pulse'}`}></div>
-                  <span className={`text-[10px] font-mono tracking-widest ${hasApiKey ? 'text-zinc-500' : 'text-zinc-700'}`}>
-                    {hasApiKey ? '••••••••••••••••' : t.keyRequired}
-                  </span>
-                </div>
-                <button 
-                  onClick={handleSelectKey}
-                  className="p-1.5 text-zinc-500 hover:text-orange-500 transition-colors"
-                  title="Update Key"
-                >
-                  <Key size={14} />
-                </button>
-              </div>
+            {/* MINI API STATUS IN HEADER (NOW AN INPUT) */}
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-900/50 border border-emerald-900/20 rounded-lg">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]"></div>
+              <span className="text-[9px] font-black uppercase tracking-widest text-emerald-500/80">API SECURED</span>
             </div>
 
-            <div className="flex items-center gap-2">
-              <button onClick={() => setLang(lang === 'en' ? 'vi' : 'en')} className="p-2 text-zinc-500 hover:text-orange-500"><Languages size={20} /></button>
-              <button onClick={() => setShowGuide(true)} className="p-2 text-zinc-500 hover:text-orange-500"><HelpCircle size={20} /></button>
-              {image && <button onClick={() => setImage(null)} className="hidden sm:flex px-4 py-2 text-[10px] font-black bg-zinc-900 border border-zinc-800 rounded uppercase tracking-widest items-center"><ArrowLeft size={12} className="mr-2" /> {t.newProject}</button>}
+            <div className="flex items-center gap-2 border-l border-zinc-800 pl-4">
+              <button onClick={() => setLang(lang === 'en' ? 'vi' : 'en')} className="p-2 text-zinc-500 hover:text-white transition-colors"><Languages size={18} /></button>
+              <button onClick={() => setShowGuide(true)} className="p-2 text-zinc-500 hover:text-white transition-colors"><HelpCircle size={18} /></button>
+              <button onClick={() => setHasStarted(false)} className="p-2 text-zinc-500 hover:text-orange-500 transition-colors"><Lock size={18} /></button>
             </div>
           </div>
         </div>
@@ -278,52 +264,67 @@ const App: React.FC = () => {
 
       {/* Guide Modal */}
       {showGuide && (
-        <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-6">
-          <div className="bg-zinc-900 w-full max-w-xl rounded-[2rem] border border-zinc-800 p-10 relative">
-            <button onClick={() => setShowGuide(false)} className="absolute top-6 right-6 text-zinc-500 hover:text-white"><X size={24} /></button>
-            <h2 className="text-3xl font-black text-white mb-8 uppercase tracking-tighter">{t.howToUse}</h2>
-            <div className="space-y-6 text-zinc-400 font-medium">
-              <p>{t.guideStep1}</p><p>{t.guideStep2}</p><p>{t.guideStep3}</p><p>{t.guideStep4}</p>
+        <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-md flex items-center justify-center p-6">
+          <div className="bg-zinc-900 w-full max-w-xl rounded-[2.5rem] border border-zinc-800 p-10 relative shadow-3xl">
+            <button onClick={() => setShowGuide(false)} className="absolute top-8 right-8 text-zinc-500 hover:text-white transition-colors"><X size={24} /></button>
+            <h2 className="text-3xl font-black text-white mb-8 uppercase tracking-tighter italic">{t.howToUse}</h2>
+            <div className="space-y-6 text-zinc-400 font-medium leading-relaxed">
+              <p className="flex gap-4"><span className="text-orange-500 font-black">01</span> {t.guideStep1}</p>
+              <p className="flex gap-4"><span className="text-orange-500 font-black">02</span> {t.guideStep2}</p>
+              <p className="flex gap-4"><span className="text-orange-500 font-black">03</span> {t.guideStep3}</p>
+              <p className="flex gap-4"><span className="text-orange-500 font-black">04</span> {t.guideStep4}</p>
             </div>
-            <button onClick={() => setShowGuide(false)} className="mt-10 w-full py-4 bg-zinc-800 text-white font-black uppercase rounded-xl">CLOSE</button>
+            <button onClick={() => setShowGuide(false)} className="mt-10 w-full py-4 bg-white text-black font-black uppercase rounded-2xl hover:bg-zinc-200 transition-all">ĐÃ HIỂU</button>
           </div>
         </div>
       )}
 
       <main className="max-w-7xl mx-auto p-6 md:p-12">
         {!image ? (
-          <div className="max-w-4xl mx-auto mt-12 text-center">
-            <h2 className="text-5xl md:text-7xl font-black text-white mb-6 tracking-tight">{t.landingTitle}</h2>
-            <p className="text-zinc-500 text-xl mb-12">{t.landingSub}</p>
-            <label className="border-2 border-dashed border-zinc-900 hover:border-orange-600 transition-all rounded-[3rem] p-24 block cursor-pointer bg-zinc-950 shadow-2xl">
-              <Upload size={48} className="mx-auto mb-6 text-zinc-700" />
-              <p className="text-2xl font-black text-white uppercase">{t.importRef}</p>
+          <div className="max-w-4xl mx-auto mt-12 text-center animate-in fade-in slide-in-from-bottom-4 duration-700">
+            <h2 className="text-5xl md:text-8xl font-black text-white mb-6 tracking-tighter leading-[0.9] uppercase italic">{t.landingTitle}</h2>
+            <p className="text-zinc-500 text-xl mb-12 max-w-2xl mx-auto">{t.landingSub}</p>
+            <label className="group relative border-2 border-dashed border-zinc-900 hover:border-orange-600 transition-all rounded-[4rem] p-32 block cursor-pointer bg-zinc-950 shadow-2xl overflow-hidden active:scale-95 duration-200">
+              <div className="absolute inset-0 bg-orange-600/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+              <Upload size={64} className="mx-auto mb-8 text-zinc-800 group-hover:text-orange-500 group-hover:scale-110 transition-all duration-500" />
+              <p className="text-2xl font-black text-white uppercase group-hover:tracking-[0.1em] transition-all">{t.importRef}</p>
               <input type="file" className="hidden" accept="image/*" onChange={handleFileChange} />
             </label>
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
             <div className="lg:col-span-6 space-y-6">
-              <div className="bg-zinc-950 rounded-[2rem] p-4 border border-zinc-900 shadow-2xl">
-                <img src={image} alt="Source" className="w-full rounded-xl object-cover aspect-video" />
+              <div className="bg-zinc-950 rounded-[3rem] p-5 border border-zinc-900 shadow-2xl">
+                <img src={image} alt="Source" className="w-full rounded-[2rem] object-cover aspect-video" />
               </div>
               {!result && !analyzing && (
                 <button 
                   onClick={startAnalysis} 
-                  className={`w-full py-6 text-white rounded-2xl font-black text-xl shadow-2xl flex items-center justify-center gap-3 uppercase tracking-widest transition-all ${!hasApiKey ? 'bg-zinc-800 border border-zinc-700 opacity-50' : 'bg-orange-600 hover:bg-orange-500 orange-glow'}`}
+                  className="w-full py-7 bg-orange-600 hover:bg-orange-500 text-white rounded-3xl font-black text-xl shadow-2xl flex items-center justify-center gap-3 uppercase tracking-widest transition-all orange-glow active:scale-95"
                 >
                   <Wand2 size={24} /> {t.deconstruct}
                 </button>
               )}
-              {analyzing && <div className="w-full py-6 bg-zinc-900 text-zinc-500 rounded-2xl font-black text-xl flex items-center justify-center gap-3 uppercase animate-pulse"><Loader2 className="animate-spin" size={24} /> {t.analyzing}</div>}
+              {analyzing && (
+                <div className="w-full py-7 bg-zinc-900 border border-zinc-800 text-zinc-500 rounded-3xl font-black text-xl flex items-center justify-center gap-3 uppercase animate-pulse">
+                  <Loader2 className="animate-spin text-orange-600" size={24} /> 
+                  {t.analyzing}
+                </div>
+              )}
             </div>
 
             <div className="lg:col-span-6 space-y-6">
               {result ? (
-                <div className="bg-zinc-950 rounded-[2.5rem] p-8 border border-zinc-900 shadow-2xl flex flex-col h-full">
-                  <div className="mb-8">
-                    <h3 className="text-3xl font-black text-white uppercase tracking-tighter">{result.presetName}</h3>
-                    <p className="text-zinc-600 text-[10px] font-black uppercase tracking-[0.4em]">CHROMATIC ENGINE RESULT</p>
+                <div className="bg-zinc-950 rounded-[3rem] p-10 border border-zinc-900 shadow-2xl flex flex-col h-full animate-in fade-in slide-in-from-right-4 duration-500">
+                  <div className="mb-10 flex justify-between items-start">
+                    <div>
+                      <h3 className="text-4xl font-black text-white uppercase tracking-tighter mb-1 italic">{result.presetName}</h3>
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-orange-600 shadow-[0_0_8px_rgba(234,88,12,0.6)]"></div>
+                        <p className="text-zinc-600 text-[10px] font-black uppercase tracking-[0.3em]">Cinegrade AI Analysis</p>
+                      </div>
+                    </div>
+                    {image && <button onClick={() => setImage(null)} className="p-3 bg-zinc-900 hover:bg-zinc-800 rounded-full transition-colors"><ArrowLeft size={16} /></button>}
                   </div>
 
                   <div className="flex gap-2 mb-8 overflow-x-auto pb-2 no-scrollbar border-b border-zinc-900">
@@ -331,14 +332,14 @@ const App: React.FC = () => {
                       <button 
                         key={tab} 
                         onClick={() => setActiveTab(tab)}
-                        className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === tab ? 'text-orange-500 border-b-2 border-orange-500' : 'text-zinc-600 hover:text-zinc-400'}`}
+                        className={`px-5 py-2 text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === tab ? 'text-orange-500 border-b-2 border-orange-500 bg-orange-500/5' : 'text-zinc-600 hover:text-zinc-400'}`}
                       >
                         {t.tabs[tab]}
                       </button>
                     ))}
                   </div>
 
-                  <div className="flex-1 overflow-y-auto pr-2 no-scrollbar min-h-[400px]">
+                  <div className="flex-1 overflow-y-auto pr-2 no-scrollbar min-h-[420px]">
                     {activeTab === 'tone' && (
                       <div className="grid grid-cols-2 gap-4 animate-in fade-in duration-300">
                         <ParamBox label={t.params.exp} value={result.parameters.exposure.toFixed(2)} />
@@ -363,14 +364,14 @@ const App: React.FC = () => {
                     )}
 
                     {activeTab === 'hsl' && (
-                      <div className="space-y-6 animate-in fade-in duration-300">
+                      <div className="space-y-4 animate-in fade-in duration-300">
                         {(Object.entries(result.parameters.hsl) as [string, HSLChannel][]).map(([color, vals]) => (
-                          <div key={color} className="p-4 bg-black rounded-xl border border-zinc-900">
-                            <div className="flex items-center gap-2 mb-3">
-                              <div className={`w-3 h-3 rounded-full`} style={{ backgroundColor: color }}></div>
-                              <span className="text-[10px] font-black uppercase tracking-widest text-white">{color}</span>
+                          <div key={color} className="p-5 bg-black rounded-2xl border border-zinc-900 group hover:border-zinc-700 transition-all shadow-inner">
+                            <div className="flex items-center gap-3 mb-4">
+                              <div className="w-4 h-4 rounded-full border border-white/10 shadow-lg" style={{ backgroundColor: color }}></div>
+                              <span className="text-xs font-black uppercase tracking-widest text-white">{color}</span>
                             </div>
-                            <div className="grid grid-cols-3 gap-2">
+                            <div className="grid grid-cols-3 gap-3">
                               <HSLVal label="H" val={vals.hue} />
                               <HSLVal label="S" val={vals.sat} />
                               <HSLVal label="L" val={vals.lum} />
@@ -385,7 +386,7 @@ const App: React.FC = () => {
                         <GradingRow label="SHADOWS" values={result.parameters.colorGrading.shadows} />
                         <GradingRow label="MIDTONES" values={result.parameters.colorGrading.midtones} />
                         <GradingRow label="HIGHLIGHTS" values={result.parameters.colorGrading.highlights} />
-                        <div className="grid grid-cols-2 gap-4 mt-4">
+                        <div className="grid grid-cols-2 gap-4 mt-6">
                           <ParamBox label="BLENDING" value={result.parameters.colorGrading.blending} />
                           <ParamBox label="BALANCE" value={result.parameters.colorGrading.balance} />
                         </div>
@@ -401,18 +402,18 @@ const App: React.FC = () => {
                     )}
                   </div>
 
-                  <div className="mt-10 grid grid-cols-2 gap-4">
-                    <button onClick={() => downloadFile(generateXMP(result.parameters, result.presetName), `${result.presetName}.xmp`, 'application/xml')} className="py-4 bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl font-black text-xs uppercase flex items-center justify-center gap-2 transition-all border border-zinc-800"><Monitor size={16} /> {t.desktop}</button>
-                    <button onClick={() => downloadFile(generateXMP(result.parameters, result.presetName), `${result.presetName}.dng`, 'application/octet-stream')} className="py-4 bg-orange-600 hover:bg-orange-500 text-white rounded-xl font-black text-xs uppercase flex items-center justify-center gap-2 transition-all shadow-xl shadow-orange-900/40"><Smartphone size={16} /> {t.mobile}</button>
+                  <div className="mt-12 grid grid-cols-2 gap-5">
+                    <button onClick={() => downloadFile(generateXMP(result.parameters, result.presetName), `${result.presetName}.xmp`, 'application/xml')} className="py-5 bg-zinc-900 hover:bg-zinc-800 text-white rounded-[1.25rem] font-black text-xs uppercase flex items-center justify-center gap-3 transition-all border border-zinc-800 shadow-xl active:scale-95"><Monitor size={18} /> {t.desktop}</button>
+                    <button onClick={() => downloadFile(generateXMP(result.parameters, result.presetName), `${result.presetName}.dng`, 'application/octet-stream')} className="py-5 bg-orange-600 hover:bg-orange-500 text-white rounded-[1.25rem] font-black text-xs uppercase flex items-center justify-center gap-3 transition-all shadow-2xl shadow-orange-900/40 active:scale-95"><Smartphone size={18} /> {t.mobile}</button>
                   </div>
-                  <button onClick={copyMobileSummary} className="mt-4 w-full py-3 bg-zinc-900 text-zinc-500 hover:text-white rounded-xl text-[10px] font-black uppercase flex items-center justify-center gap-2 border border-zinc-900 transition-all">
-                    {copied ? <Check size={14} className="text-green-500" /> : <Copy size={14} />} {copied ? t.copied : t.copyManual}
+                  <button onClick={copyMobileSummary} className="mt-5 w-full py-4 bg-zinc-900 text-zinc-500 hover:text-white rounded-[1.25rem] text-[10px] font-black uppercase flex items-center justify-center gap-3 border border-zinc-900 transition-all active:bg-zinc-800">
+                    {copied ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />} {copied ? t.copied : t.copyManual}
                   </button>
                 </div>
               ) : (
-                <div className="h-full flex flex-col items-center justify-center text-center p-12 bg-zinc-950/50 rounded-[2.5rem] border border-zinc-900">
-                   <Activity size={48} className="text-zinc-900 mb-6" />
-                   <p className="text-zinc-700 font-black uppercase tracking-widest text-xs">{t.connectRef}</p>
+                <div className="h-full flex flex-col items-center justify-center text-center p-16 bg-zinc-950/50 rounded-[3rem] border-2 border-dashed border-zinc-900">
+                   <Activity size={64} className="text-zinc-900 mb-8" />
+                   <p className="text-zinc-700 font-black uppercase tracking-[0.3em] text-[10px] max-w-[200px] leading-loose italic">{t.connectRef}</p>
                 </div>
               )}
             </div>
@@ -420,8 +421,8 @@ const App: React.FC = () => {
         )}
       </main>
 
-      <footer className="py-12 border-t border-zinc-900 text-center mt-20">
-        <p className="text-zinc-700 text-[10px] font-black uppercase tracking-[0.2em]">
+      <footer className="py-12 border-t border-zinc-900 text-center mt-20 bg-zinc-950/50">
+        <p className="text-zinc-700 text-[10px] font-black uppercase tracking-[0.4em]">
           © 2025 CINEGRADE - Bản quyền bởi DINO AI MEDIA - Nguyễn Quốc Hưng - 0914286003
         </p>
       </footer>
@@ -430,23 +431,26 @@ const App: React.FC = () => {
 };
 
 const ParamBox: React.FC<{ label: string; value: string | number }> = ({ label, value }) => (
-  <div className="bg-black p-4 rounded-xl border border-zinc-900 group hover:border-orange-900 transition-all">
-    <div className="text-[8px] font-black text-zinc-700 group-hover:text-orange-500 mb-1 tracking-widest">{label}</div>
-    <div className="text-xl font-black text-white tabular-nums mono">{typeof value === 'number' && value > 0 ? `+${value}` : value}</div>
+  <div className="bg-black p-5 rounded-2xl border border-zinc-900 group hover:border-orange-900 transition-all shadow-inner">
+    <div className="text-[9px] font-black text-zinc-700 group-hover:text-orange-500 mb-2 tracking-widest uppercase transition-colors">{label}</div>
+    <div className="text-2xl font-black text-white tabular-nums mono tracking-tighter">{typeof value === 'number' && value > 0 ? `+${value}` : value}</div>
   </div>
 );
 
 const HSLVal: React.FC<{ label: string; val: number }> = ({ label, val }) => (
   <div className="flex flex-col">
-    <span className="text-[8px] text-zinc-700 font-black uppercase">{label}</span>
-    <span className="text-xs font-black text-white mono">{val > 0 ? `+${val}` : val}</span>
+    <span className="text-[9px] text-zinc-700 font-black uppercase mb-1">{label}</span>
+    <span className="text-sm font-black text-white mono">{val > 0 ? `+${val}` : val}</span>
   </div>
 );
 
 const GradingRow: React.FC<{ label: string; values: { hue: number; sat: number; lum: number } }> = ({ label, values }) => (
-  <div className="p-4 bg-black rounded-xl border border-zinc-900">
-    <div className="text-[10px] font-black text-zinc-600 uppercase mb-3 tracking-widest">{label}</div>
-    <div className="grid grid-cols-3 gap-2">
+  <div className="p-6 bg-black rounded-2xl border border-zinc-900 group hover:border-zinc-800 transition-all shadow-inner">
+    <div className="text-[11px] font-black text-zinc-600 uppercase mb-4 tracking-widest flex items-center gap-3 italic">
+      <div className="w-1 h-3 bg-orange-600 rounded-full"></div>
+      {label}
+    </div>
+    <div className="grid grid-cols-3 gap-4">
       <HSLVal label="HUE" val={values.hue} />
       <HSLVal label="SAT" val={values.sat} />
       <HSLVal label="LUM" val={values.lum} />
