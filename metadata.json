@@ -1,4 +1,3 @@
-
 {
   "name": "LumiPreset AI - Image to XMP Converter",
   "description": "An intelligent tool that analyzes your images using Gemini AI to generate professional Adobe Lightroom presets (.xmp) based on the image's color grading and tone.",
